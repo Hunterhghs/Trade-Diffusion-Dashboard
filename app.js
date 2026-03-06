@@ -27,8 +27,9 @@ const STATUS = {
 };
 
 // Initial Seed Data (Hardcoded IDs based on 110m natural earth)
-// We will assign these randomly or specifically to give the map a starting state
-const SEED_ADVANCED = ['840', '826', '276', '392', '250', '124', '036']; // USA, GBR, DEU, JPN, FRA, CAN, AUS
+const SEED_ADVANCED = ['840', '826', '276', '392', '250', '124', '036', '380', '724', '410', '528', '756', '752', '616', '056', '040', '578', '208', '246', '372', '554', '702', '376', '203', '620', '300', '158', '344', '440', '703'];
+const SEED_EMERGING = ['156', '356', '076', '484', '643', '360', '792', '682', '032', '710', '764', '784', '818', '458', '704', '050', '152', '608', '170', '586', '566', '364', '604', '398', '642', '404', '804', '188', '348', '862', '400', '191', '148', '112', '800', '218'];
+const UNCLASSIFIED_NO_DATA = ['010']; // Antarctica
 const TOTAL_COUNTRIES = 177;
 
 // D3 Setup
@@ -63,35 +64,28 @@ async function init() {
         // Fetch TopoJSON data
         const response = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json');
         worldData = await response.json();
-        
+
         const countries = topojson.feature(worldData, worldData.objects.countries).features;
 
         // Initialize our data map
         countries.forEach(d => {
+            let initialStatus = STATUS.DEVELOPING;
+            if (SEED_ADVANCED.includes(d.id)) initialStatus = STATUS.ADVANCED;
+            else if (SEED_EMERGING.includes(d.id)) initialStatus = STATUS.EMERGING;
+            else if (UNCLASSIFIED_NO_DATA.includes(d.id) || !d.properties.name) initialStatus = STATUS.UNCLASSIFIED;
+
             // Strip out non-existent or tiny countries if they lack geometries, but 110m is usually clean
             countryDataMap.set(d.id, {
                 id: d.id,
                 name: d.properties.name,
-                status: STATUS.UNCLASSIFIED,
+                status: initialStatus,
                 centroid: path.centroid(d), // [x, y] for drawing flows
                 timeInStatus: 0
             });
         });
 
-        // Set Initial Seeds
-        SEED_ADVANCED.forEach(id => {
-            if (countryDataMap.has(id)) {
-                countryDataMap.get(id).status = STATUS.ADVANCED;
-            }
-        });
+        // Initial setup applies the statuses directly during initialization now.
 
-        // Some initial emerging
-        const potentialEmerging = ['156', '356', '076', '484', '710', '792']; // CHN, IND, BRA, MEX, ZAF, TUR
-        potentialEmerging.forEach(id => {
-            if (countryDataMap.has(id)) {
-                countryDataMap.get(id).status = STATUS.EMERGING;
-            }
-        });
 
         // Render Map
         countryPaths = gMap.selectAll(".country")
@@ -121,12 +115,12 @@ async function init() {
         playBtn.addEventListener('click', startSimulation);
         pauseBtn.addEventListener('click', pauseSimulation);
         resetBtn.addEventListener('click', resetSimulation);
-        
+
         pauseBtn.disabled = true;
 
     } catch (error) {
         console.error("Error loading map data: ", error);
-        document.getElementById('map-container').innerHTML = 
+        document.getElementById('map-container').innerHTML =
             "<div style='color: white; padding: 2rem;'>Error loading map data. Ensure you have an internet connection.</div>";
     }
 }
@@ -135,13 +129,13 @@ async function init() {
 function showTooltip(event, d) {
     const data = countryDataMap.get(d.id);
     if (!data) return;
-    
+
     // Status text formatting
     const statusText = data.status.charAt(0).toUpperCase() + data.status.slice(1);
-    
+
     // Get color based on status
     let statusDotClass = data.status;
-    
+
     tooltip.transition().duration(200).style("opacity", 1);
     tooltip.html(`
         <div class="tooltip-title">${data.name}</div>
@@ -168,7 +162,7 @@ function startSimulation() {
     isPlaying = true;
     playBtn.disabled = true;
     pauseBtn.disabled = false;
-    
+
     simulationInterval = setInterval(simulationTick, SIMULATION_SPEED);
 }
 
@@ -182,24 +176,16 @@ function pauseSimulation() {
 function resetSimulation() {
     pauseSimulation();
     currentYear = 0;
-    
+
     // Reset Data
     countryDataMap.forEach(v => {
-        v.status = STATUS.UNCLASSIFIED;
+        let initialStatus = STATUS.DEVELOPING;
+        if (SEED_ADVANCED.includes(v.id)) initialStatus = STATUS.ADVANCED;
+        else if (SEED_EMERGING.includes(v.id)) initialStatus = STATUS.EMERGING;
+        else if (UNCLASSIFIED_NO_DATA.includes(v.id) || !v.name) initialStatus = STATUS.UNCLASSIFIED;
+
+        v.status = initialStatus;
         v.timeInStatus = 0;
-    });
-
-    SEED_ADVANCED.forEach(id => {
-        if (countryDataMap.has(id)) {
-            countryDataMap.get(id).status = STATUS.ADVANCED;
-        }
-    });
-
-    const potentialEmerging = ['156', '356', '076', '484', '710', '792'];
-    potentialEmerging.forEach(id => {
-        if (countryDataMap.has(id)) {
-            countryDataMap.get(id).status = STATUS.EMERGING;
-        }
     });
 
     // Clear Flows
@@ -211,7 +197,7 @@ function resetSimulation() {
 
 function simulationTick() {
     currentYear++;
-    
+
     const advancedNodes = [];
     const emergingNodes = [];
     const unclassifiedNodes = [];
@@ -220,15 +206,15 @@ function simulationTick() {
     // Group current statuses
     countryDataMap.forEach(country => {
         // Only consider countries with valid centroids for math
-        if (Number.isNaN(country.centroid[0])) return; 
+        if (Number.isNaN(country.centroid[0])) return;
 
         if (country.status === STATUS.ADVANCED) advancedNodes.push(country);
         else if (country.status === STATUS.EMERGING) emergingNodes.push(country);
         else if (country.status === STATUS.DEVELOPING) developingNodes.push(country);
         else unclassifiedNodes.push(country);
-        
+
         // Increase time in current status, making them more likely to "graduate"
-        if(country.status !== STATUS.ADVANCED && country.status !== STATUS.UNCLASSIFIED) {
+        if (country.status !== STATUS.ADVANCED && country.status !== STATUS.UNCLASSIFIED) {
             country.timeInStatus++;
         }
     });
@@ -239,12 +225,12 @@ function simulationTick() {
     // Rule 1: Advanced -> Emerging Diffusion (Advanced trades with Emerging, helping them grow)
     emergingNodes.forEach(emerging => {
         // Probability to upgrade to Advanced
-        const upgradeChance = 0.05 + (emerging.timeInStatus * 0.02); 
+        const upgradeChance = 0.015 + (emerging.timeInStatus * 0.002);
         if (Math.random() < upgradeChance) {
             emerging.status = STATUS.ADVANCED;
             emerging.timeInStatus = 0;
             newlyUpgraded.add(emerging.id);
-            
+
             // Visual trade flow from a random advanced to this newly upgraded one
             if (advancedNodes.length > 0) {
                 const source = advancedNodes[Math.floor(Math.random() * advancedNodes.length)];
@@ -257,21 +243,21 @@ function simulationTick() {
     // Emerging economies start trading heavily with unclassified/developing, lifting them
     unclassifiedNodes.forEach(unclass => {
         // Small chance to enter global market as developing
-        if (Math.random() < 0.02) {
+        if (!UNCLASSIFIED_NO_DATA.includes(unclass.id) && Math.random() < 0.01) {
             unclass.status = STATUS.DEVELOPING;
             unclass.timeInStatus = 0;
             newlyUpgraded.add(unclass.id);
         }
     });
-    
+
     developingNodes.forEach(dev => {
         // Probability to upgrade to Emerging
-        const upgradeChance = 0.08 + (dev.timeInStatus * 0.01);
+        const upgradeChance = 0.02 + (dev.timeInStatus * 0.005);
         if (Math.random() < upgradeChance) {
             dev.status = STATUS.EMERGING;
             dev.timeInStatus = 0;
             newlyUpgraded.add(dev.id);
-            
+
             // Visual trade flow from a random emerging
             if (emergingNodes.length > 0) {
                 const source = emergingNodes[Math.floor(Math.random() * emergingNodes.length)];
@@ -283,7 +269,7 @@ function simulationTick() {
     drawTradeFlows(tradeFlows);
     updateMapVisuals(newlyUpgraded);
     updateStats();
-    
+
     // Stop if everything is advanced
     const allAdvanced = Array.from(countryDataMap.values()).every(c => c.status === STATUS.ADVANCED || c.status === STATUS.UNCLASSIFIED);
     if (allAdvanced && currentYear > 5) {
@@ -295,7 +281,7 @@ function updateMapVisuals(newlyUpgraded = new Set()) {
     countryPaths.attr("class", d => {
         const cData = countryDataMap.get(d.id);
         let cls = `country ${cData ? cData.status : STATUS.UNCLASSIFIED}`;
-        
+
         // Add pulse animation class to newly upgraded
         if (newlyUpgraded.has(d.id) && cData) {
             if (cData.status === STATUS.ADVANCED) cls += " pulse-advanced";
@@ -333,9 +319,9 @@ function drawTradeFlows(flows) {
         const dy = flow.target[1] - flow.source[1];
         const midX = flow.source[0] + dx / 2;
         const midY = flow.source[1] + dy / 2;
-        
+
         // Offset the mid point for the arc
-        const controlX = midX - dy * 0.2; 
+        const controlX = midX - dy * 0.2;
         const controlY = midY + dx * 0.2;
 
         const pathData = [flow.source, [controlX, controlY], flow.target];
@@ -362,7 +348,7 @@ function drawTradeFlows(flows) {
                     .style("opacity", 0)
                     .remove();
             });
-            
+
         // Optional Particle
         gFlows.append("circle")
             .attr("class", "flow-particle")
@@ -370,8 +356,8 @@ function drawTradeFlows(flows) {
             .attr("transform", `translate(${flow.source})`)
             .transition()
             .duration(800)
-            .attrTween("transform", function() {
-                return function(t) {
+            .attrTween("transform", function () {
+                return function (t) {
                     const p = pathLine.node().getPointAtLength(t * totalLength);
                     return `translate(${p.x},${p.y})`;
                 }
