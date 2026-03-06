@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Trade Diffusion Simulator</title>
+    <meta name="description" content="A dashboard demonstrating the diffusion of economic advancement through global trade networks.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="dashboard">
+        <header>
+            <h1>Trade Impact on Global Diffusion</h1>
+            <p>Simulating the spread of economic advancement through global trade networks.</p>
+        </header>
+        
+        <main>
+            <div id="map-container">
+                <!-- D3 Map will be injected here -->
+            </div>
+            
+            <aside id="controls-panel" class="glass-panel">
+                <div class="panel-section">
+                    <h2>Simulation Controls</h2>
+                    <div class="button-group">
+                        <button id="btn-play">Play</button>
+                        <button id="btn-pause">Pause</button>
+                        <button id="btn-reset">Reset</button>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h2>Diffusion Legend</h2>
+                    <ul class="legend">
+                        <li><span class="color-box advanced"></span> Advanced Economies</li>
+                        <li><span class="color-box emerging"></span> Emerging Economies</li>
+                        <li><span class="color-box developing"></span> Developing Nations</li>
+                        <li><span class="color-box unclassified"></span> Unclassified / No Data</li>
+                    </ul>
+                </div>
+                
+                <div class="panel-section stats">
+                    <h2>Current State (<span id="current-year">Year 0</span>)</h2>
+                    <div class="stat-row">
+                        <span>Advanced:</span> <span id="stat-advanced" class="text-advanced">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Emerging:</span> <span id="stat-emerging" class="text-emerging">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Developing:</span> <span id="stat-developing" class="text-developing">0</span>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Dependencies -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
+    <script src="app.js"></script>
+</body>
+</html>
