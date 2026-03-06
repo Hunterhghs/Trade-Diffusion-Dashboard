@@ -44,14 +44,24 @@ const svg = d3.select("#map-container")
     .style("max-width", "100%")
     .style("height", "auto");
 
+// Scale responsively on initial load
+const initialScale = window.innerWidth < 768 ? 100 : 160;
+
 const projection = d3.geoNaturalEarth1()
-    .scale(160)
+    .scale(initialScale)
     .translate([480, 250]);
 
 const path = d3.geoPath().projection(projection);
 
 const gMap = svg.append("g").attr("class", "map-group");
 const gFlows = svg.append("g").attr("class", "flow-group");
+
+// Handle window resize dynamically to keep SVG scaled
+window.addEventListener('resize', () => {
+    // Redraw or adjust viewBox if we needed strict pixel bounds, 
+    // but the viewBox 0 0 960 500 naturally scales width/height 100%.
+    // Just resetting zoom if they drastically resized might be nice, but is optional.
+});
 
 // Tooltip setup
 const tooltip = d3.select("body").append("div")
@@ -102,12 +112,18 @@ async function init() {
 
         // Zoom capability (optional but nice)
         const zoom = d3.zoom()
-            .scaleExtent([1, 8])
+            .scaleExtent([0.5, 8]) // allowed zooming out further for small screens
             .on("zoom", (event) => {
                 gMap.attr("transform", event.transform);
                 gFlows.attr("transform", event.transform);
             });
+
         svg.call(zoom);
+
+        // Auto-center on mobile
+        if (window.innerWidth < 768) {
+            svg.call(zoom.transform, d3.zoomIdentity.translate(0, 50).scale(0.8));
+        }
 
         updateStats();
 
